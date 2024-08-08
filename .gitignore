@@ -1,0 +1,51 @@
+# Игнорируем временные и скомпилированные файлы Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Игнорируем файлы проекта, созданные IDE
+.idea/
+.vscode/
+
+# Игнорируем конфигурационные файлы и логи
+*.log
+*.db
+
+# Игнорируем бинарные и скомпилированные файлы
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+
+# Игнорируем файлы с изображениями (например, скриншоты)
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Игнорируем файлы окружения и библиотеки
+conda-meta/
+env/
+venv/
+env.bak/
+venv.bak/
+include/
+Lib/
+Library/
+libs/
+Scripts/
+share/
+Tools/
+
+# Игнорируем специфические файлы проекта
+files_list.txt
+*.nonadmin
+
+# Включаем важные файлы
+!.gitignore
+!*.py
+!README.md
+!requirements.txt
+!environment.yml
