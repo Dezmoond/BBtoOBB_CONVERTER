@@ -268,7 +268,7 @@ class IndexTracker:
 def display_images_with_annotations_OBB(image_paths, annotations_list, img_heights, img_widths):
     plt.close('all')  # Закрываем все предыдущие окна
     fig, ax = plt.subplots(figsize=(10, 10))
-    fig.canvas.manager.set_window_title('Custom Window Title')
+    fig.canvas.manager.set_window_title('Просмотр')
     tracker = IndexTracker(ax, image_paths, annotations_list, img_heights, img_widths)
     plt.show()
 def load_model_with_progress(model_path, progress_bar, status_label):
