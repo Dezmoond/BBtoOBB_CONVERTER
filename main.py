@@ -52,30 +52,50 @@ def read_annotations_from_file(file_path):
 
 def read_annotations_from_file_OBB(file_path):
     annotations_obb = []
-    with open(file_path, 'r') as file:
-        for line in file:
-            if line.strip():
-                parts = line.split()
-                print(f"Processing line: {line.strip()}")
-                if len(parts) == 9:
-                    try:
-                        annotations_obb.append([float(part) for part in parts])
-                        print('OBB')
-                        type_ann = 1
-                    except ValueError:
-                        print(f"Skipping invalid line: {line.strip()}")
-                else:
-                    if len(parts) == 5:
+    type_ann = None  # Инициализация переменной type_ann значением по умолчанию
+
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            if not lines:
+                print(f"Файл {file_path} пуст.")
+                return annotations_obb, type_ann  # Возвращаем пустой список и None
+
+            for line in lines:
+                line = line.strip()
+                if line:
+                    parts = line.split()
+                    print(f"Processing line: {line}")  # Отладочный вывод
+
+                    if len(parts) == 9:
                         try:
                             annotations_obb.append([float(part) for part in parts])
-                            type_ann = 0
+                            type_ann = 1  # Установить тип аннотации как OBB
                         except ValueError:
-                            print(f"Skipping invalid line: {line.strip()}")
+                            print(f"Skipping invalid line (OBB): {line}")
+                    elif len(parts) == 5:
+                        try:
+                            annotations_obb.append([float(part) for part in parts])
+                            type_ann = 0  # Установить тип аннотации как BB
+                        except ValueError:
+                            print(f"Skipping invalid line (BB): {line}")
                     else:
-                        print(f"Invalid format: {line.strip()}")
+                        print(f"Invalid format: {line}")
+
+        if type_ann is None:
+            if annotations_obb:
+                print(f"File content: {annotations_obb}")  # Отладочный вывод
+            else:
+                print(f"Файл {file_path} пуст или содержит некорректные данные.")
+            raise ValueError(
+                "Не удалось определить тип аннотации. Файл может быть пустым или содержать аннотации в неверном формате.")
+
+    except FileNotFoundError:
+        raise ValueError(f"Файл {file_path} не найден.")
+    except IOError as e:
+        raise ValueError(f"Ошибка ввода/вывода при открытии файла {file_path}: {e}")
+
     return annotations_obb, type_ann
-
-
 def denormalize_and_convert(cx, cy, rw, rh, img_width, img_height):
     x_center = cx * img_width
     y_center = cy * img_height
@@ -296,7 +316,7 @@ def main(image_folder, annotation_folder, progress_bar, status_label):
     img_widths = []
 
     for file_name in os.listdir(image_folder):
-        if file_name.endswith('.jpg'):
+        if file_name.lower().endswith('.jpg'):  # Обработка только .jpg файлов
             image_path = os.path.join(image_folder, file_name)
             annotation_file_name = file_name.replace('.jpg', '.txt')
             annotations_path = os.path.join(annotation_folder, annotation_file_name)
@@ -326,13 +346,21 @@ def main(image_folder, annotation_folder, progress_bar, status_label):
     status_label.config(text="Завершено.")
 
 
-
 def select_folder(entry):
     folder_selected = filedialog.askdirectory()
     entry.delete(0, tk.END)
     entry.insert(0, folder_selected)
 
-
+def check_annotation_type(file_path):
+    with open(file_path, 'r') as file:
+        first_line = file.readline().strip()
+        parts = first_line.split()
+        if len(parts) == 9:
+            return 'OBB'
+        elif len(parts) == 5:
+            return 'BB'
+        else:
+            return None
 def process_images_and_annotations(model, image_folder, annotation_folder, progress_bar, status_label):
     # Создание выходной папки на основе имени папки с аннотациями
     annotation_folder_name = os.path.basename(annotation_folder.rstrip("/"))
@@ -349,6 +377,13 @@ def process_images_and_annotations(model, image_folder, annotation_folder, progr
     total_images = len(images)
     progress_bar['maximum'] = total_images
 
+    # Проверяем тип аннотаций из первого файла
+    annotation_file = [file_name for file_name in os.listdir(annotation_folder) if file_name.endswith('.txt')]
+    if annotation_file:
+        annotation_type = check_annotation_type(os.path.join(annotation_folder, annotation_file[0]))
+        if annotation_type == 'OBB':
+            status_label.config(text="Выбраны OBB аннотации!")
+
     for idx, file_name in enumerate(images):
         image_path = os.path.join(image_folder, file_name)
         annotation_file_name = file_name.replace('.jpg', '.txt')
@@ -358,7 +393,7 @@ def process_images_and_annotations(model, image_folder, annotation_folder, progr
             print(f"Файл аннотаций {annotations_path} не существует, пропускаем.")
             continue
 
-        annotations = read_annotations_from_file(annotations_path)
+        annotations = read_annotations_from_file_OBB(annotations_path)[0]
         print(f"Аннотации для {file_name}: {annotations}")
 
         img = cv2.imread(image_path)
