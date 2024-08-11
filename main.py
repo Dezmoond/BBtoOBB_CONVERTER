@@ -13,8 +13,7 @@ import threading
 from matplotlib.widgets import Slider  # test delet
 from ultralytics.models.sam import Predictor as SAMPredictor
 from matplotlib.widgets import Button
-import matplotlib
-matplotlib.use('TkAgg')
+
 # Словарь для цветов классов
 CLASS_COLORS = {
     0: 'red',
