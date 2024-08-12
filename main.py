@@ -56,12 +56,7 @@ def read_annotations_from_file_OBB(file_path):
 
     try:
         with open(file_path, 'r') as file:
-            lines = file.readlines()
-            if not lines:
-                print(f"Файл {file_path} пуст.")
-                return annotations_obb, type_ann  # Возвращаем пустой список и None
-
-            for line in lines:
+            for line in file:
                 line = line.strip()
                 if line:
                     parts = line.split()
@@ -82,20 +77,21 @@ def read_annotations_from_file_OBB(file_path):
                     else:
                         print(f"Invalid format: {line}")
 
-        if type_ann is None:
-            if annotations_obb:
-                print(f"File content: {annotations_obb}")  # Отладочный вывод
-            else:
-                print(f"Файл {file_path} пуст или содержит некорректные данные.")
-            raise ValueError(
-                "Не удалось определить тип аннотации. Файл может быть пустым или содержать аннотации в неверном формате.")
-
     except FileNotFoundError:
-        raise ValueError(f"Файл {file_path} не найден.")
-    except IOError as e:
-        raise ValueError(f"Ошибка ввода/вывода при открытии файла {file_path}: {e}")
+        print(f"File {file_path} not found.")
+        return [], None
+
+    if not annotations_obb:
+        print("The annotation file is empty or contains only invalid annotations.")
+        return [], None
+
+    if type_ann is None:
+        print(f"File content: {annotations_obb}")  # Отладочный вывод
+        raise ValueError(
+            "Не удалось определить тип аннотации. Файл может содержать аннотации в неверном формате.")
 
     return annotations_obb, type_ann
+
 def denormalize_and_convert(cx, cy, rw, rh, img_width, img_height):
     x_center = cx * img_width
     y_center = cy * img_height
@@ -208,34 +204,56 @@ def draw_bbox_on_image(image, annotations, img_height, img_width):
     plt.show()
 
 
-
-
 class IndexTracker:
-    def __init__(self, ax, image_paths, annotations_list, img_heights, img_widths):
+    def __init__(self, fig, ax, image_paths, annotations_list, img_heights, img_widths):
+        self.fig = fig
         self.ax = ax
         self.image_paths = image_paths
         self.annotations_list = annotations_list
         self.img_heights = img_heights
         self.img_widths = img_widths
         self.idx = 0
-        self.fig = ax.figure
-        self.update_plot()
 
-        # Кнопки для переключения изображений
-        axprev = plt.axes([0.7, 0.03, 0.05, 0.055])
-        axnext = plt.axes([0.81, 0.03, 0.05, 0.055])
-        self.bnext = Button(axnext, 'Вперед')
-        self.bprev = Button(axprev, 'Назад')
+        # Добавление изображения
+        self.img_display = self.ax.imshow(cv2.cvtColor(cv2.imread(self.image_paths[self.idx]), cv2.COLOR_BGR2RGB))
+
+        # Создание полосы прокрутки
+        self.ax_slider = plt.axes([0.1, 0.01, 0.65, 0.03], facecolor='lightgoldenrodyellow')
+        self.slider = Slider(self.ax_slider, 'Image', 0, len(self.image_paths) - 1, valinit=0, valstep=1)
+        self.slider.on_changed(self.update)
+
+        # Кнопки для навигации
+        axprev = plt.axes([0.8, 0.01, 0.1, 0.04])
+        axnext = plt.axes([0.91, 0.01, 0.1, 0.04])
+        self.bnext = Button(axnext, 'Next')
+        self.bprev = Button(axprev, 'Prev')
         self.bnext.on_clicked(self.next)
         self.bprev.on_clicked(self.prev)
+
+        self.update_plot()
+
+    def update(self, val):
+        self.idx = int(self.slider.val)
+        self.update_plot()
+
+    def next(self, event):
+        self.idx = (self.idx + 1) % len(self.image_paths)
+        self.slider.set_val(self.idx)
+
+    def prev(self, event):
+        self.idx = (self.idx - 1) % len(self.image_paths)
+        self.slider.set_val(self.idx)
 
     def update_plot(self):
         self.ax.clear()
         img = cv2.cvtColor(cv2.imread(self.image_paths[self.idx]), cv2.COLOR_BGR2RGB)
         self.ax.imshow(img)
+        self.ax.set_title(f"Image {self.idx + 1}/{len(self.image_paths)}")
 
         annotations, type_ann = self.annotations_list[self.idx]
         self.draw_annotations_obb(annotations, self.img_widths[self.idx], self.img_heights[self.idx], type_ann)
+
+        self.fig.canvas.draw_idle()
 
     def draw_annotations_obb(self, annotations, img_width, img_height, type_ann):
         for annotation in annotations:
@@ -254,9 +272,9 @@ class IndexTracker:
                 denormalized_coords = [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max]
                 polygon = patches.Polygon(
                     [denormalized_coords[i:i + 2] for i in range(0, len(denormalized_coords), 2)],
-                    closed=True, edgecolor=CLASS_COLORS.get(clas, 'black'), linewidth=3, fill=False)
+                    closed=True, edgecolor='red', linewidth=2, fill=False)
                 self.ax.add_patch(polygon)
-                self.ax.text(x_min, y_min, f'Class {clas}', color=CLASS_COLORS.get(clas, 'black'),
+                self.ax.text(x_min, y_min, f'Class {clas}', color='red',
                              fontsize=12, verticalalignment='top',
                              bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
             elif type_ann == 1:  # OBB
@@ -266,29 +284,22 @@ class IndexTracker:
                     for x, y in zip([x1, x2, x3, x4], [y1, y2, y3, y4])
                 ]
                 polygon = patches.Polygon(denormalized_coords, closed=True,
-                                          edgecolor=CLASS_COLORS.get(clas, 'black'), linewidth=3, fill=False)
+                                          edgecolor='blue', linewidth=2, fill=False)
                 self.ax.add_patch(polygon)
                 self.ax.text(denormalized_coords[0][0], denormalized_coords[0][1], f'Class {clas}',
-                            color=CLASS_COLORS.get(clas, 'black'), fontsize=12, verticalalignment='top',
-                            bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+                             color='blue', fontsize=12, verticalalignment='top',
+                             bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
 
-        self.ax.set_title(f"File: {os.path.basename(self.image_paths[self.idx])} | Type: {'OBB' if type_ann == 1 else 'BB'}")
-        self.fig.canvas.draw_idle()
+        self.ax.set_title(
+            f"File: {os.path.basename(self.image_paths[self.idx])} | Type: {'OBB' if type_ann == 1 else 'BB'}")
 
-    def next(self, event):
-        self.idx = (self.idx + 1) % len(self.image_paths)
-        self.update_plot()
-
-    def prev(self, event):
-        self.idx = (self.idx - 1) % len(self.image_paths)
-        self.update_plot()
 
 # Функция для отображения изображений с аннотациями OBB
 def display_images_with_annotations_OBB(image_paths, annotations_list, img_heights, img_widths):
     plt.close('all')  # Закрываем все предыдущие окна
     fig, ax = plt.subplots(figsize=(10, 10))
     fig.canvas.manager.set_window_title('Просмотр')
-    tracker = IndexTracker(ax, image_paths, annotations_list, img_heights, img_widths)
+    IndexTracker(fig, ax, image_paths, annotations_list, img_heights, img_widths)
     plt.show()
 def load_model_with_progress(model_path, progress_bar, status_label):
     status_label.config(text="Загрузка модели...")
@@ -442,6 +453,7 @@ def preview_obb(image_folder, annotation_folder):
     annotations_list = []
     img_heights = []
     img_widths = []
+
     for file_name in os.listdir(image_folder):
         if file_name.endswith('.jpg'):
             image_path = os.path.join(image_folder, file_name)
@@ -452,20 +464,31 @@ def preview_obb(image_folder, annotation_folder):
                 print(f"Файл аннотаций {annotations_path} не существует, пропускаем.")
                 continue
 
-            annotations = read_annotations_from_file_OBB(annotations_path)
-            print(f"Аннотации для {file_name}: {annotations}")
+            try:
+                annotations, type_ann = read_annotations_from_file_OBB(annotations_path)
+                if type_ann is None:
+                    print(f"Не удалось определить тип аннотации для файла {annotations_path}. Пропускаем.")
+                    continue
 
-            img = cv2.imread(image_path)
-            img_height, img_width = img.shape[:2]
+                print(f"Аннотации для {file_name}: {annotations}")
 
-            image_paths.append(image_path)
-            annotations_list.append(annotations)
-            img_heights.append(img_height)
-            img_widths.append(img_width)
-    print(image_paths)
-    print(annotations_list)
+                img = cv2.imread(image_path)
+                if img is None:
+                    print(f"Не удалось прочитать изображение {image_path}. Пропускаем.")
+                    continue
+
+                img_height, img_width = img.shape[:2]
+
+                image_paths.append(image_path)
+                annotations_list.append((annotations, type_ann))  # Изменено
+                img_heights.append(img_height)
+                img_widths.append(img_width)
+            except ValueError as e:
+                print(f"Ошибка чтения аннотаций из файла {annotations_path}: {e}")
+
+    print("Список изображений:", image_paths)
+    print("Список аннотаций:", annotations_list)
     display_images_with_annotations_OBB(image_paths, annotations_list, img_heights, img_widths)
-
 
 
 
