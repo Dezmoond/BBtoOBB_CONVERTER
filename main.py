@@ -535,6 +535,19 @@ def process_images_and_annotations(model, image_folder, annotation_folder, progr
     preview_obb(image_folder, f'{annotation_folder}_OBB')
 
 
+
+        # Создание основного окна
+    vind = tk.Tk()
+    vind.withdraw()  # Скрыть основное окно, так как нам нужно только окно сообщения
+
+        # Показ окна сообщения
+    messagebox.showinfo(f'Готово!', f"Аннотаци в папке {annotation_folder}_OBB \n Изображения в папке {image_folder}_OBB")
+        # Закрытие основного окна после показа сообщения
+    vind.destroy()
+    # Вызов функции для отображения сообщения
+    show_message()
+
+
 def preview_obb(image_folder, annotation_folder):
     image_paths = []
     annotations_list = []
