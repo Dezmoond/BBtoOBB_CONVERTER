@@ -104,7 +104,7 @@ class AnnotationViewer:
         self.title_label = tk.Label(master, text="", font=("Arial", 14))
         self.title_label.pack()
 
-        self.info_label = tk.Label(master, text="Выберите, какой класс сохранить", font=("Arial", 14))
+        self.info_label = tk.Label(master, text="Выберите, какую аннотацию сохранить", font=("Arial", 14))
         self.info_label.pack(side=tk.TOP)
 
         self.legend_frame = tk.Frame(master)
